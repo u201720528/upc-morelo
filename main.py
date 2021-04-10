@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from sklearn import linear_model
 from sklearn import model_selection
-from sklearn.metrics import accuracy_score, confusion_matrix, classification_report, jaccard_score, precision_score, \
+from sklearn.metrics import accuracy_score, confusion_matrix, jaccard_score, precision_score, \
     recall_score
 from scipy import stats
 import pickle
@@ -28,7 +28,7 @@ def ProcesarInput(valorHurto,archivo):
     df.dropna(subset=["comuna"], axis=0, inplace=True)
 
     missing_data = df.isnull()
-    # missing_data.head(5)
+    missing_data.head(5)
 
     moda_actividad = df["actividad"].mode()[0]
     df["actividad"].replace(0, moda_actividad, inplace=True)
@@ -133,6 +133,7 @@ def Main():
     print("Juntando")
     frames = [primeraData, segundaData]
     MainData = pd.concat(frames, ignore_index=True)
+    print("Cantidad de datos cargados: " + str(MainData.shape[0]))
 
     dfDistrito = pd.get_dummies(MainData["distrito"])
     dfActividad = pd.get_dummies(MainData["actividad_descripcion"])
@@ -213,6 +214,14 @@ def LogisticRegressionModel():
     print('Train set:', X_train.shape, Y_train.shape)
     print('Test set:', X_test.shape, Y_test.shape)
 
+    cantidadMuestra = X_train.shape[0] + X_test.shape[0]
+    cantidadEntrenamiento = X_train.shape[0]
+    cantidadTest = X_test.shape[0]
+
+    print("Cantidad Muestra: " + str(cantidadMuestra))
+    print("Cantidad Entrenamiento: " + str(cantidadEntrenamiento))
+    print("Cantidad Test: " + str(cantidadTest))
+
     #C=1.0
     model = linear_model.LogisticRegression(C=1, class_weight=None, dual=False, fit_intercept=True,
                                             intercept_scaling=1, max_iter=100, multi_class='ovr', n_jobs=1,
@@ -258,7 +267,7 @@ def ProbarModelo():
     loaded_model = pickle.load(open('lds_model.sav', 'rb'))
 
 
-#Main()
+Main()
 LogisticRegressionModel()
-#ProbarModelo()
-#Test()
+ProbarModelo()
+Test()
