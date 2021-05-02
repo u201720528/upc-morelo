@@ -9,7 +9,7 @@ import pickle
 import matplotlib.pyplot as plt
 import itertools
 from sklearn import preprocessing
-
+from sklearn.model_selection import cross_val_score
 
 def ProcesarInput(valorHurto,archivo):
     df = pd.read_csv(archivo, header=None)
@@ -206,7 +206,7 @@ def LogisticRegressionModel():
 
     X = preprocessing.StandardScaler().fit(X).transform(X)
 
-    validation_size = 0.2
+    validation_size = 0.15
     seed = 4
 
     X_train, X_test, Y_train, Y_test = model_selection.train_test_split(X, y, test_size=validation_size, random_state=seed)
@@ -223,9 +223,9 @@ def LogisticRegressionModel():
     print("Cantidad Test: " + str(cantidadTest))
 
     #C=1.0
-    model = linear_model.LogisticRegression(C=1, class_weight=None, dual=False, fit_intercept=True,
+    model = linear_model.LogisticRegression(C=99999999, class_weight=None, dual=False, fit_intercept=True,
                                             intercept_scaling=1, max_iter=100, multi_class='ovr', n_jobs=1,
-                                            penalty='l2', random_state=None, solver='liblinear', tol=0.0001,
+                                            penalty='l2', random_state=0, solver='liblinear', tol=0.0001,
                                             verbose=0, warm_start=False)
     model.fit(X_train, Y_train)
     #print(model)
@@ -246,6 +246,7 @@ def LogisticRegressionModel():
     print("Saving Model")
     pickle.dump(model, open("lds_model.sav", "wb"))
     print("Save Model")
+    print(cross_val_score(model, X_train, Y_train, cv=5))
 
     # Calcular la matriz de confusión
     cnf_matrix = confusion_matrix(Y_test, predictions, labels=[1, 0])
@@ -255,6 +256,8 @@ def LogisticRegressionModel():
     plt.figure()
     plot_confusion_matrix(cnf_matrix, classes=['churn=1', 'churn=0'], normalize=False, title='Matriz de confusión')
 
+    #ProbarModelo(X_train, Y_train)
+
 def Test():
     df = pd.read_csv("MainData.csv")
     missing_data = df.isnull()
@@ -263,11 +266,62 @@ def Test():
         print (missing_data[column].value_counts())
         print("")
 
-def ProbarModelo():
-    loaded_model = pickle.load(open('lds_model.sav', 'rb'))
+def ProbarModelo(X, y):
+    #loaded_model = pickle.load(open('lds_model.sav', 'rb'))
+    classifiers = []
+    classifiers_titles = ["clf_overfit_1", "clf_overfit_2", "clf_overfit_3", "clf_right_fit", "clf_underfit_1",
+                          "clf_underfit_2", "clf_underfit_3"]
 
+    clf_overfit_1 = linear_model.LogisticRegression(random_state=0, C=99999999999, class_weight=None, dual=False, fit_intercept=True,
+                                            intercept_scaling=1, max_iter=100, multi_class='ovr', n_jobs=1,
+                                            penalty='l2', solver='liblinear', tol=0.0001,
+                                            verbose=0, warm_start=False).fit(X, y)
+    clf_overfit_2 = linear_model.LogisticRegression(random_state=0, C=10000000, class_weight=None, dual=False, fit_intercept=True,
+                                            intercept_scaling=1, max_iter=100, multi_class='ovr', n_jobs=1,
+                                            penalty='l2', solver='liblinear', tol=0.0001,
+                                            verbose=0, warm_start=False).fit(X, y)
+    clf_overfit_3 = linear_model.LogisticRegression(random_state=0, C=1000, class_weight=None, dual=False, fit_intercept=True,
+                                            intercept_scaling=1, max_iter=100, multi_class='ovr', n_jobs=1,
+                                            penalty='l2', solver='liblinear', tol=0.0001,
+                                            verbose=0, warm_start=False).fit(X, y)
+    clf_right_fit = linear_model.LogisticRegression(random_state=0, C=1, class_weight=None, dual=False, fit_intercept=True,
+                                            intercept_scaling=1, max_iter=100, multi_class='ovr', n_jobs=1,
+                                            penalty='l2', solver='liblinear', tol=0.0001,
+                                            verbose=0, warm_start=False).fit(X, y)
+    clf_underfit_1 = linear_model.LogisticRegression(random_state=0, C=0.001, class_weight=None, dual=False, fit_intercept=True,
+                                            intercept_scaling=1, max_iter=100, multi_class='ovr', n_jobs=1,
+                                            penalty='l2', solver='liblinear', tol=0.0001,
+                                            verbose=0, warm_start=False).fit(X, y)
+    clf_underfit_2 = linear_model.LogisticRegression(random_state=0, C=0.0001, class_weight=None, dual=False, fit_intercept=True,
+                                            intercept_scaling=1, max_iter=100, multi_class='ovr', n_jobs=1,
+                                            penalty='l2', solver='liblinear', tol=0.0001,
+                                            verbose=0, warm_start=False).fit(X, y)
+    clf_underfit_3 = linear_model.LogisticRegression(random_state=0, C=0.00001, class_weight=None, dual=False, fit_intercept=True,
+                                            intercept_scaling=1, max_iter=100, multi_class='ovr', n_jobs=1,
+                                            penalty='l2', solver='liblinear', tol=0.0001,
+                                            verbose=0, warm_start=False).fit(X, y)
 
-Main()
+    classifiers = np.append(classifiers, clf_overfit_1)
+    classifiers = np.append(classifiers, clf_overfit_2)
+    classifiers = np.append(classifiers, clf_overfit_3)
+    classifiers = np.append(classifiers, clf_right_fit)
+    classifiers = np.append(classifiers, clf_underfit_1)
+    classifiers = np.append(classifiers, clf_underfit_2)
+    classifiers = np.append(classifiers, clf_underfit_3)
+
+    clf_df = pd.DataFrame()
+    clf_df["Classifier_object"] = classifiers
+    clf_df["Classifier"] = classifiers_titles
+    w_vectors = np.empty((0, 2))
+    for clf in classifiers:
+        w_vectors = np.append(w_vectors, clf.coef_, axis=0)
+
+    clf_df["w_0"] = w_vectors[:, 0]
+    clf_df["w_1"] = w_vectors[:, 1]
+
+    print(clf_df)
+
+#Main()
 LogisticRegressionModel()
-ProbarModelo()
-Test()
+
+#Test()
