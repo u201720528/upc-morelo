@@ -41,6 +41,16 @@ def ProcesarInput(valorHurto,archivo):
     #     print("")
 
     df['pendiente'] = 0
+
+    df['cantfN'] = 0
+    df['cantfT'] = 0
+    df['cantfU'] = 0
+    df['cantf'] = 0
+    df['max12'] = 0
+    df['min12'] = 0
+    df['min12'] = 0
+    df['var'] = 0
+
     classification = []
     for index in df.iterrows():
         classification.append(valorHurto)
@@ -48,15 +58,27 @@ def ProcesarInput(valorHurto,archivo):
 
     # df.head()
     for index, row in df.iterrows():
+        cantfN = 0
+        cantfT = 0
+        cantfU = 0
+        cantf = 0
         for i in range(24):
             if row[8 + i] == 'N':
                 df.loc[index, 'f' + str(i + 1)] = 0
+                cantfN = cantfN + 1
             elif row[8 + i] == '*':
                 df.loc[index, 'f' + str(i + 1)] = 1
+                cantfT = cantfT + 1
             elif row[8 + i] == 'U':
                 df.loc[index, 'f' + str(i + 1)] = 2
+                cantfU = cantfU + 1
             else:
                 df.loc[index, 'f' + str(i + 1)] = 3
+                cantf = cantf + 1
+        df.loc[index, 'cantfN'] = cantfN
+        df.loc[index, 'cantfT'] = cantfT
+        df.loc[index, 'cantfU'] = cantfU
+        df.loc[index, 'cantf'] = cantf
 
     for i in range(24):
         df[["f" + str(i+1)]] = df[["f" + str(i+1)]].astype("int32")
@@ -92,6 +114,8 @@ def CalcularPendiente(df):
         slope, intercept, r, p, std_err = stats.linregress(X, Y)
         if (max(consumo) > 0):
             dfc.loc[index, 'pendiente'] = slope
+        if max(consumo) > 0:
+            dfc.loc[index, 'var'] = (max(consumo) - min(consumo))/max(consumo)
     return dfc
 
 
@@ -139,13 +163,13 @@ def Main():
     dfActividad = pd.get_dummies(MainData["actividad_descripcion"])
     dfTarifa = pd.get_dummies(MainData["tarifa"])
     dfSucursal = pd.get_dummies(MainData["sucursal"])
-    dfGiro = pd.get_dummies(MainData["giro_suministro"])
+    #dfGiro = pd.get_dummies(MainData["giro_suministro"])
 
     MainData = pd.concat([MainData, dfDistrito], axis=1, join="inner")
     MainData = pd.concat([MainData, dfActividad], axis=1, join="inner")
     MainData = pd.concat([MainData, dfTarifa], axis=1, join="inner")
     MainData = pd.concat([MainData, dfSucursal], axis=1, join="inner")
-    MainData = pd.concat([MainData, dfGiro], axis=1, join="inner")
+    #MainData = pd.concat([MainData, dfGiro], axis=1, join="inner")
 
     print("Calculando pendiente")
     MainData = CalcularPendiente(MainData)
@@ -321,7 +345,7 @@ def ProbarModelo(X, y):
 
     print(clf_df)
 
-#Main()
+Main()
 LogisticRegressionModel()
 
 #Test()
