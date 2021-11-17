@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import random
 from sklearn import linear_model
 from sklearn import model_selection
 from sklearn.metrics import accuracy_score, confusion_matrix, jaccard_score, precision_score, \
@@ -24,8 +25,9 @@ def ProcesarInput(valorHurto,archivo):
                "c18", "c19", "c20", "c21", "c22", "c23", "c24"]
 
     df.columns = headers
-
     df.dropna(subset=["comuna"], axis=0, inplace=True)
+    df['comuna'] = df['comuna'].astype('int')
+
 
     missing_data = df.isnull()
     missing_data.head(5)
@@ -41,14 +43,15 @@ def ProcesarInput(valorHurto,archivo):
     #     print("")
 
     df['pendiente'] = 0
-
+    df['pendiente12'] = 0
+    df['pendiente6'] = 0
     df['cantfN'] = 0
     df['cantfT'] = 0
     df['cantfU'] = 0
     df['cantf'] = 0
-    df['max12'] = 0
-    df['min12'] = 0
-    df['min12'] = 0
+    #df['max12'] = 0
+    #df['min12'] = 0
+    #df['min12'] = 0
     df['var'] = 0
 
     classification = []
@@ -116,6 +119,26 @@ def CalcularPendiente(df):
             dfc.loc[index, 'pendiente'] = slope
         if max(consumo) > 0:
             dfc.loc[index, 'var'] = (max(consumo) - min(consumo))/max(consumo)
+
+        X = []
+        Y = []
+        for i in range(12):
+            X.append(i + 1)
+            Y.append(row['c' + str(i + 11 + 1)])
+
+        slope, intercept, r, p, std_err = stats.linregress(X, Y)
+        if (max(consumo) > 0):
+            dfc.loc[index, 'pendiente12'] = slope
+
+        X = []
+        Y = []
+        for i in range(6):
+            X.append(i + 1)
+            Y.append(row['c' + str(i + 17 + 1)])
+
+        slope, intercept, r, p, std_err = stats.linregress(X, Y)
+        if (max(consumo) > 0):
+            dfc.loc[index, 'pendiente6'] = slope
     return dfc
 
 
@@ -139,36 +162,47 @@ def LimpiarColumnas(df):
     df.drop("numero_cliente", axis="columns", inplace=True)
     df.drop("tarifa", axis="columns", inplace=True)
     df.drop("meses", axis="columns", inplace=True)
+
     for i in range(24):
         df.drop("c" + str(i + 1), axis="columns", inplace=True)
+
+    for i in range(24):
+        df.drop("f" + str(i + 1), axis="columns", inplace=True)
 
     for i in range(24):
         df.drop("d" + str(i + 1), axis="columns", inplace=True)
 
 def Main():
     print("Procesando primer archivo (hurtos)")
-    url = "hurtos.csv"
+    #url = "hurtos.csv"
+    url = "septiembre_hurto.csv"
     primeraData = ProcesarInput(1, url)
 
     print("Procesando segundo archivo (no hurtos)")
-    url = "no_hurtos.csv"
+    #url = "no_hurtos.csv"
+    url = "septiembre_no_hurto.csv"
     segundaData = ProcesarInput(0, url)
+    segundaData = segundaData.sample(n=4200)
 
     print("Juntando")
     frames = [primeraData, segundaData]
     MainData = pd.concat(frames, ignore_index=True)
     print("Cantidad de datos cargados: " + str(MainData.shape[0]))
 
-    dfDistrito = pd.get_dummies(MainData["distrito"])
-    dfActividad = pd.get_dummies(MainData["actividad_descripcion"])
-    dfTarifa = pd.get_dummies(MainData["tarifa"])
-    dfSucursal = pd.get_dummies(MainData["sucursal"])
+    #dfComuna = pd.get_dummies(MainData["comuna"])
+    #MainData = pd.concat([MainData, dfComuna], axis=1, join="inner")
+
+
+    #dfDistrito = pd.get_dummies(MainData["distrito"])
+    #dfActividad = pd.get_dummies(MainData["actividad_descripcion"])
+    #dfTarifa = pd.get_dummies(MainData["tarifa"])
+    #dfSucursal = pd.get_dummies(MainData["sucursal"])
     #dfGiro = pd.get_dummies(MainData["giro_suministro"])
 
-    MainData = pd.concat([MainData, dfDistrito], axis=1, join="inner")
-    MainData = pd.concat([MainData, dfActividad], axis=1, join="inner")
-    MainData = pd.concat([MainData, dfTarifa], axis=1, join="inner")
-    MainData = pd.concat([MainData, dfSucursal], axis=1, join="inner")
+    #MainData = pd.concat([MainData, dfDistrito], axis=1, join="inner")
+    #MainData = pd.concat([MainData, dfActividad], axis=1, join="inner")
+    #MainData = pd.concat([MainData, dfTarifa], axis=1, join="inner")
+    #MainData = pd.concat([MainData, dfSucursal], axis=1, join="inner")
     #MainData = pd.concat([MainData, dfGiro], axis=1, join="inner")
 
     print("Calculando pendiente")
@@ -176,7 +210,7 @@ def Main():
     print("Pendiente calculada")
 
     print("Eliminando columnas")
-    LimpiarColumnas(MainData)
+    #LimpiarColumnas(MainData)
 
     MainData.to_csv("MainData.csv", mode='w', index=False)
 
@@ -220,8 +254,27 @@ def plot_confusion_matrix(cm, classes,
 
 def LogisticRegressionModel():
     ModelData = pd.read_csv("MainData.csv")
+
+    #dfDistrito = pd.get_dummies(ModelData["distrito"])
+    #ModelData = pd.concat([ModelData, dfDistrito], axis=1, join="inner")
+
+    # dfDistrito = pd.get_dummies(MainData["distrito"])
+    #dfTarifa = pd.get_dummies(ModelData["tarifa"])
+    dfSucursal = pd.get_dummies(ModelData["sucursal"])
+    dfGiro = pd.get_dummies(ModelData["giro_suministro"])
+
+    # MainData = pd.concat([MainData, dfDistrito], axis=1, join="inner")
+    #MainData = pd.concat([ModelData, dfTarifa], axis=1, join="inner")
+    ModelData = pd.concat([ModelData, dfSucursal], axis=1, join="inner")
+    ModelData = pd.concat([ModelData, dfGiro], axis=1, join="inner")
+
+    LimpiarColumnas(ModelData)
+
+    ModelData.to_csv("MainData2.csv", mode='w', index=False)
+
     print(ModelData.head())
     ModelData['clasificacion'] = ModelData['clasificacion'].astype('int')
+
 
     X = np.array(ModelData.drop(['clasificacion'], 1))
     y = np.array(ModelData['clasificacion'])
@@ -261,11 +314,11 @@ def LogisticRegressionModel():
     prescision = precision_score(Y_test, predictions)
     recall = recall_score(Y_test, predictions)
 
-    print("Indice Jaccard: " + str(jaccard_score(Y_test, predictions)))
-    print("Accuracy(Exactitud): " + str(accuracy_score(Y_test, predictions)))
+    #print("Indice Jaccard: " + str(jaccard_score(Y_test, predictions)))
+    #print("Accuracy(Exactitud): " + str(accuracy_score(Y_test, predictions)))
     print("Precision: " + str(precision_score(Y_test, predictions)))
     print("Recall(Sesibilidad): " + str(recall_score(Y_test, predictions)))
-    print("F1: " + str(2*(recall * prescision) / (recall + prescision)))
+    #print("F1: " + str(2*(recall * prescision) / (recall + prescision)))
     # Save Model
     print("Saving Model")
     pickle.dump(model, open("lds_model.sav", "wb"))
